@@ -1,42 +1,75 @@
 #include "joystick.h"
-// Ngưỡng phân biệt hướng (ADC 12-bit: 0–4095, giữa ~2048)
-#define JOY_THRESHOLD_HIGH  3000  // Vượt ngưỡng này = gạt sang 1 hướng
-#define JOY_THRESHOLD_LOW   1000  // Dưới ngưỡng này = gạt sang hướng ngược lại
-// Biến nội bộ chống lặp: đảm bảo mỗi lần gạt chỉ tính 1 bước
-static JoyDirection lastDir = JOY_NONE;
-// Hàm đọc 1 kênh ADC bất kỳ
-static uint16_t Read_ADC_Channel(ADC_HandleTypeDef *hadc, uint32_t channel)
+
+#define DEADZONE  800   /* Ngưỡng lệch để tính là gạt */
+
+static uint16_t s_center_x = 2048;
+static uint16_t s_center_y = 2048;
+static JoyDirection s_last = JOY_NONE;
+
+extern ADC_HandleTypeDef hadc1;
+extern ADC_HandleTypeDef hadc2;
+
+/* ADC1: PA1 (IN1) = trục X,  ADC2: PC3 (IN13) = trục Y */
+static uint16_t read_adc(ADC_HandleTypeDef *hadc)
 {
-    ADC_ChannelConfTypeDef sConfig = {0};
-    sConfig.Channel = channel;
-    sConfig.Rank = 1;
-    sConfig.SamplingTime = ADC_SAMPLETIME_15CYCLES;
-    HAL_ADC_ConfigChannel(hadc, &sConfig);
     HAL_ADC_Start(hadc);
-    HAL_ADC_PollForConversion(hadc, 10);
-    uint16_t value = HAL_ADC_GetValue(hadc);
+    
+    // Chờ chuyển đổi hoàn tất với timeout 100ms
+    if (HAL_ADC_PollForConversion(hadc, 100) != HAL_OK)
+    {
+        // Nếu có lỗi, dừng ADC và trả về giá trị trung tâm để tránh hành vi lạ
+        HAL_ADC_Stop(hadc);
+        return 2048;
+    }
+
+    uint16_t v = (uint16_t)HAL_ADC_GetValue(hadc);
     HAL_ADC_Stop(hadc);
-    return value;
+    return v;
 }
-JoyDirection Joystick_Read(ADC_HandleTypeDef *hadc)
+
+void Joystick_GetRaw(uint16_t *x, uint16_t *y)
 {
-    uint16_t x = Read_ADC_Channel(hadc, ADC_CHANNEL_1); // PA1 = trục X
-    uint16_t y = Read_ADC_Channel(hadc, ADC_CHANNEL_2); // PA2 = trục Y
+    // Các kênh ADC đã được cấu hình sẵn trong MX_ADC1_Init và MX_ADC2_Init
+    *y = read_adc(&hadc2);   /* PC3  */
+    *x = read_adc(&hadc1);   /* PA1  */
+}
+
+void Joystick_Calibrate(void)
+{
+    uint32_t sum_x = 0, sum_y = 0;
+    uint16_t x, y;
+
+    for (int i = 0; i < 3; i++) {
+        Joystick_GetRaw(&x, &y);
+        HAL_Delay(5);
+    }
+
+    for (int i = 0; i < 8; i++) {
+        Joystick_GetRaw(&x, &y);
+        sum_x += x;
+        sum_y += y;
+        HAL_Delay(5);
+    }
+    s_center_x = sum_x / 8;
+    s_center_y = sum_y / 8;
+}
+
+JoyDirection Joystick_Read(void)
+{
+    uint16_t x, y;
+    Joystick_GetRaw(&x, &y);
+
+    int32_t dx = (int32_t)x - s_center_x;
+    int32_t dy = (int32_t)y - s_center_y;
+
     JoyDirection dir = JOY_NONE;
-    // Ưu tiên trục có biên độ lệch lớn hơn
-    if (x > JOY_THRESHOLD_HIGH)      dir = JOY_RIGHT;
-    else if (x < JOY_THRESHOLD_LOW)  dir = JOY_LEFT;
-    else if (y > JOY_THRESHOLD_HIGH) dir = JOY_UP;
-    else if (y < JOY_THRESHOLD_LOW)  dir = JOY_DOWN;
-    // --- Cơ chế Edge Trigger (chống lặp) ---
-    // Chỉ trả về hướng khi vừa mới gạt (chuyển từ NONE sang hướng nào đó).
-    // Nếu giữ joystick liên tục, chỉ tính 1 lần.
-    if (dir != JOY_NONE && lastDir == JOY_NONE) {
-        lastDir = dir;
-        return dir;  // Hướng mới → trả về
-    }
-    if (dir == JOY_NONE) {
-        lastDir = JOY_NONE;  // Đã thả joystick về giữa → reset
-    }
-    return JOY_NONE;  // Đang giữ hoặc không gạt → bỏ qua
+
+    if (dx > DEADZONE)       dir = JOY_RIGHT;
+    else if (dx < -DEADZONE) dir = JOY_LEFT;
+    else if (dy > DEADZONE)  dir = JOY_DOWN;
+    else if (dy < -DEADZONE) dir = JOY_UP;
+
+    if (dir != JOY_NONE && s_last == JOY_NONE) { s_last = dir; return dir; }
+    if (dir == JOY_NONE) s_last = JOY_NONE;
+    return JOY_NONE;
 }

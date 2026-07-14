@@ -1,6 +1,7 @@
 #include "display.h"
 #include "stm32f429i_discovery_lcd.h"
 #include <stdio.h>
+#include <string.h>
 #define TILE_SIZE     52
 #define TILE_GAP      4
 #define GRID_OFFSET_X 14
