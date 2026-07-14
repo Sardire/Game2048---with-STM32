@@ -188,6 +188,33 @@ int main(void)
           }
           HAL_Delay(50);  /* ~20 FPS poll rate */
       }
+  /* TEST BƯỚC 3: Joystick */
+  Display_Init();
+  BSP_LCD_SetFont(&Font16);
+  BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
+  BSP_LCD_SetBackColor(LCD_COLOR_BLACK);
+  Joystick_Calibrate();
+
+  for(;;) {
+      uint16_t ax, ay;
+      Joystick_GetRaw(&ax, &ay);
+
+      char buf[40];
+      BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
+
+      sprintf(buf, "X = %4d   Y = %4d", ax, ay);
+      BSP_LCD_DisplayStringAt(10, 110, (uint8_t*)buf, LEFT_MODE);
+
+      JoyDirection d = Joystick_Read();
+
+      // Đảm bảo tất cả các chuỗi hướng có độ dài bằng nhau (5 ký tự) để tự ghi đè lên nhau
+      const char *dname[] = {"NONE ", "UP   ", "DOWN ", "LEFT ", "RIGHT"};
+
+      sprintf(buf, "DIR: %s", dname[d]);
+      BSP_LCD_DisplayStringAt(10, 135, (uint8_t*)buf, LEFT_MODE);
+
+      HAL_Delay(50);
+  }
 
   /* USER CODE END 2 */
 
