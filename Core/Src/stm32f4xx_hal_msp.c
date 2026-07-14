@@ -93,12 +93,18 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* hadc)
     /* Peripheral clock enable */
     __HAL_RCC_ADC1_CLK_ENABLE();
 
+    __HAL_RCC_GPIOC_CLK_ENABLE();
     __HAL_RCC_GPIOA_CLK_ENABLE();
     /**ADC1 GPIO Configuration
-    PA1     ------> ADC1_IN1
-    PA2     ------> ADC1_IN2
+    PC3     ------> ADC1_IN13
+    PA5     ------> ADC1_IN5
     */
-    GPIO_InitStruct.Pin = GPIO_PIN_1|GPIO_PIN_2;
+    GPIO_InitStruct.Pin = GPIO_PIN_3;
+    GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+    GPIO_InitStruct.Pin = GPIO_PIN_5;
     GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
@@ -106,7 +112,27 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* hadc)
     /* USER CODE BEGIN ADC1_MspInit 1 */
 
     /* USER CODE END ADC1_MspInit 1 */
+  }
+  else if(hadc->Instance==ADC2)
+  {
+    /* USER CODE BEGIN ADC2_MspInit 0 */
 
+    /* USER CODE END ADC2_MspInit 0 */
+    /* Peripheral clock enable */
+    __HAL_RCC_ADC2_CLK_ENABLE();
+
+    __HAL_RCC_GPIOC_CLK_ENABLE();
+    /**ADC2 GPIO Configuration
+    PC3     ------> ADC2_IN13
+    */
+    GPIO_InitStruct.Pin = GPIO_PIN_3;
+    GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+    /* USER CODE BEGIN ADC2_MspInit 1 */
+
+    /* USER CODE END ADC2_MspInit 1 */
   }
 
 }
@@ -128,14 +154,33 @@ void HAL_ADC_MspDeInit(ADC_HandleTypeDef* hadc)
     __HAL_RCC_ADC1_CLK_DISABLE();
 
     /**ADC1 GPIO Configuration
-    PA1     ------> ADC1_IN1
-    PA2     ------> ADC1_IN2
+    PC3     ------> ADC1_IN13
+    PA5     ------> ADC1_IN5
     */
-    HAL_GPIO_DeInit(GPIOA, GPIO_PIN_1|GPIO_PIN_2);
+    HAL_GPIO_DeInit(GPIOC, GPIO_PIN_3);
+
+    HAL_GPIO_DeInit(GPIOA, GPIO_PIN_5);
 
     /* USER CODE BEGIN ADC1_MspDeInit 1 */
 
     /* USER CODE END ADC1_MspDeInit 1 */
+  }
+  else if(hadc->Instance==ADC2)
+  {
+    /* USER CODE BEGIN ADC2_MspDeInit 0 */
+
+    /* USER CODE END ADC2_MspDeInit 0 */
+    /* Peripheral clock disable */
+    __HAL_RCC_ADC2_CLK_DISABLE();
+
+    /**ADC2 GPIO Configuration
+    PC3     ------> ADC2_IN13
+    */
+    HAL_GPIO_DeInit(GPIOC, GPIO_PIN_3);
+
+    /* USER CODE BEGIN ADC2_MspDeInit 1 */
+
+    /* USER CODE END ADC2_MspDeInit 1 */
   }
 
 }
@@ -330,8 +375,6 @@ void HAL_LTDC_MspInit(LTDC_HandleTypeDef* hltdc)
 
   /** Initializes the peripherals clock
   */
-    /* Commented out to prevent overriding the correct 6MHz LTDC clock configured by BSP */
-    /*
     PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_LTDC;
     PeriphClkInitStruct.PLLSAI.PLLSAIN = 50;
     PeriphClkInitStruct.PLLSAI.PLLSAIR = 2;
@@ -340,7 +383,6 @@ void HAL_LTDC_MspInit(LTDC_HandleTypeDef* hltdc)
     {
       Error_Handler();
     }
-    */
 
     /* Peripheral clock enable */
     __HAL_RCC_LTDC_CLK_ENABLE();
@@ -382,7 +424,7 @@ void HAL_LTDC_MspInit(LTDC_HandleTypeDef* hltdc)
     GPIO_InitStruct.Alternate = GPIO_AF14_LTDC;
     HAL_GPIO_Init(ENABLE_GPIO_Port, &GPIO_InitStruct);
 
-    GPIO_InitStruct.Pin = B5_Pin|VSYNC_Pin|G2_Pin|R4_Pin
+    GPIO_InitStruct.Pin = B5_Pin|VSYNC_Pin|GPIO_PIN_6|R4_Pin
                           |R5_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
@@ -432,9 +474,6 @@ void HAL_LTDC_MspInit(LTDC_HandleTypeDef* hltdc)
     GPIO_InitStruct.Alternate = GPIO_AF9_LTDC;
     HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
 
-    /* LTDC interrupt Init */
-    HAL_NVIC_SetPriority(LTDC_IRQn, 5, 0);
-    HAL_NVIC_EnableIRQ(LTDC_IRQn);
     /* USER CODE BEGIN LTDC_MspInit 1 */
 
     /* USER CODE END LTDC_MspInit 1 */
@@ -485,7 +524,7 @@ void HAL_LTDC_MspDeInit(LTDC_HandleTypeDef* hltdc)
     */
     HAL_GPIO_DeInit(ENABLE_GPIO_Port, ENABLE_Pin);
 
-    HAL_GPIO_DeInit(GPIOA, B5_Pin|VSYNC_Pin|G2_Pin|R4_Pin
+    HAL_GPIO_DeInit(GPIOA, B5_Pin|VSYNC_Pin|GPIO_PIN_6|R4_Pin
                           |R5_Pin);
 
     HAL_GPIO_DeInit(GPIOB, R3_Pin|R6_Pin|G4_Pin|G5_Pin
@@ -498,8 +537,6 @@ void HAL_LTDC_MspDeInit(LTDC_HandleTypeDef* hltdc)
 
     HAL_GPIO_DeInit(GPIOD, G7_Pin|B2_Pin);
 
-    /* LTDC interrupt DeInit */
-    HAL_NVIC_DisableIRQ(LTDC_IRQn);
     /* USER CODE BEGIN LTDC_MspDeInit 1 */
 
     /* USER CODE END LTDC_MspDeInit 1 */
